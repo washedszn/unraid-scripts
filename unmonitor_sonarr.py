@@ -44,6 +44,18 @@ def unmonitor_season(series_id, season_number, series_name):
     response.raise_for_status()
     logger.info(f"Unmonitored Season {season_number} for Series '{series_name}'")
 
+# Helper function to unmonitor a series
+def unmonitor_series(series_id, series_name):
+    url = f'{SONARR_URL}/series/{series_id}'
+    headers = {
+        'X-Api-Key': SONARR_API_KEY
+    }
+    series = requests.get(url, headers=headers).json()
+    series['monitored'] = False
+    response = requests.put(url, json=series, headers=headers)
+    response.raise_for_status()
+    logger.info(f"Unmonitored Series '{series_name}'")
+
 def main():
     try:
         series_list = get_all_series()
@@ -63,11 +75,18 @@ def main():
                 seasons[season_number].append(episode)
             
             # Check each season if all episodes are unmonitored
+            all_seasons_unmonitored = True
             for season_number, episodes in seasons.items():
                 season_info = next((s for s in series['seasons'] if s['seasonNumber'] == season_number), None)
                 if season_info and season_info['monitored']:
                     if all(not episode['monitored'] for episode in episodes):
                         unmonitor_season(series_id, season_number, series_name)
+                    else:
+                        all_seasons_unmonitored = False
+            
+            # Check if all seasons are unmonitored
+            if all_seasons_unmonitored:
+                unmonitor_series(series_id, series_name)
 
         logger.info("Completed processing all series.")
 
